@@ -1,0 +1,26 @@
+[project]
+name = "nonebot_plugin_ciku"
+version = "0.1.0"
+description = "词库插件"
+authors = [
+    {name = "STESmly", email = "3549337307@qq.com"},
+]
+dependencies = [
+    "nonebot>=1.9.1",
+    "httpx>=0.28.1",
+]
+requires-python = "==3.9.*"
+readme = "README.md"
+license = {text = "MIT"}
+
+
+[project.urls]
+Homepage = "https://github.com/STESmly/nonebot_plugin_ciku"
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+
+[tool.pdm]
+distribution = true
