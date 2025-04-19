@@ -1,6 +1,6 @@
 [project]
 name = "nonebot_plugin_ciku"
-version = "0.1.1"
+version = "0.1.2"
 description = "词库插件"
 authors = [
     {name = "STESmly", email = "3549337307@qq.com"},
