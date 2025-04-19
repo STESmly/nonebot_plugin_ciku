@@ -1,22 +1,22 @@
 from abc import ABC, abstractmethod
 import re,json,ast
 from .basic_method import *
-from nonebot.adapters.onebot.v11 import GroupMessageEvent, MessageSegment
+from nonebot.adapters.onebot.v11 import GroupMessageEvent, MessageSegment,Event
 
 class ParseRule(ABC):
     @abstractmethod
-    def match(self, line: str, event: GroupMessageEvent,tab_time:int) -> bool:
+    def match(self, line: str, event: Event,tab_time:int,arg_list:list,async_def_list:list) -> bool:
         pass
 
     @abstractmethod
-    def process(self, line: str, event: GroupMessageEvent,tab_time:int) -> str:
+    def process(self, line: str, event: Event,tab_time:int,arg_list:list,async_def_list:list) -> str:
         pass
 
 class 冒号_rule(ParseRule):
-    def match(self, line, event,tab_time):
+    def match(self, line, event,tab_time,arg_list,async_def_list):
         return re.search(r'^.*:.*$', line) is not None
     
-    def process(self, line, event,tab_time):
+    def process(self, line, event,tab_time,arg_list,async_def_list):
         parts = line.split(':', 1)
         stripped_part = parts[1].strip().replace("'", '"')
         try:
@@ -25,31 +25,65 @@ class 冒号_rule(ParseRule):
         except json.JSONDecodeError:
             if re.match(r'^如果:(.*) (==|!=|>=|<=|>|<) (.*)$',line):
                 return f'{parts[0]} = f"{stripped_part}"', tab_time
-            if re.match(r'±.*:.*±',line):
+            elif re.match(r'^循环:(.*) in (.*)$',line):
+                return f'{parts[0]} = f"{stripped_part}"', tab_time
+            elif re.match(r'±.*:.*±',line):
                 return line, tab_time
+            elif re.match(r'^.*:\[.*\]$',line):
+                if '%' in stripped_part:
+                    variables = re.findall(r'%([^%]*)%', stripped_part)
+                    for var in variables:
+                        stripped_part = stripped_part.replace(f'%{var}%', "ck_bianliang_"+str(var))
+                stripped_part = list_to_number(stripped_part)
+                if stripped_part is not False:
+                    return f'ck_bianliang_{parts[0]} = {stripped_part}', tab_time
+                else:
+                    return f'ck_bianliang_{parts[0]} = f"{stripped_part}"', tab_time
             else:
                 return f'ck_bianliang_{parts[0]} = f"{stripped_part}"', tab_time
         
 class 变量_rule(ParseRule):
-    def match(self, line, event,tab_time):
+    def match(self, line, event,tab_time,arg_list,async_def_list):
         return '%' in line
 
-    def process(self, line, event,tab_time):
+    def process(self, line, event,tab_time,arg_list,async_def_list):
         variables = re.findall(r'%([^%]*)%', line)
         for var in variables:
             if var == '群号':
                 line = line.replace(f'%{var}%', f'{event.group_id}')
             elif var == 'QQ':
                 line = line.replace(f'%{var}%', f'{event.user_id}')
+            elif var == 'BotQQ':
+                line = line.replace(f'%{var}%', f'{event.self_id}')
+            elif match := re.match(r'^括号(\d+)$', var):
+                line = line.replace(f'%{var}%', f'{arg_list[int(match.group(1))]}')
+            elif match := re.match(r'^AT(\d+)$', var):
+                if len(at := event.original_message.include("at")) > 0:
+                    id = at[int(match.group(1))].data["qq"]
+                    line = line.replace(f'%{var}%', f'{id}')
             line = line.replace(f'%{var}%', f'{{{"ck_bianliang_"+str(var)}}}')
         return f'{line}',tab_time
     
+class 数据计算_rule(ParseRule):
+    def match(self, line, event,tab_time,arg_list,async_def_list):
+        return re.search(r'\[.*\]', line) is not None and not re.search(r'@.*ck_bianliang_.*\[.*\]', line)
+
+    def process(self, line, event,tab_time,arg_list,async_def_list):
+        data = extract_and_split(line)
+        for value in data:
+            stripped_part = list_to_number(value)
+            if stripped_part is not False:
+                line = line.replace(f'{value}', f'{{{stripped_part}}}')
+            else:
+                pass
+        return f'{line}',tab_time
+   
 class 读_1_Rule(ParseRule):
     """读取txt文件"""
-    def match(self, line, event,tab_time):
+    def match(self, line, event,tab_time,arg_list,async_def_list):
         return re.search(r'\$读 (.*?) (.*?) (.*?)\$', line) is not None
 
-    def process(self, line, event,tab_time):
+    def process(self, line, event,tab_time,arg_list,async_def_list):
         matches = re.findall(r'\$读 ([^\$]*) ([^\$]*) ([^\$]*)\$', line)
         if matches:
             for match in matches:
@@ -59,10 +93,10 @@ class 读_1_Rule(ParseRule):
 
 class 读_2_Rule(ParseRule):
     """读取txt文件"""
-    def match(self, line, event,tab_time):
+    def match(self, line, event,tab_time,arg_list,async_def_list):
         return re.search(r'\$读 (.*?) (.*?)\$', line) is not None
     
-    def process(self, line, event,tab_time):
+    def process(self, line, event,tab_time,arg_list,async_def_list):
         matches = re.findall(r'\$读 ([^\$]*) ([^\$]*)\$', line)
         if matches:
             for match in matches:
@@ -72,10 +106,10 @@ class 读_2_Rule(ParseRule):
     
 class 写_1_Rule(ParseRule):
     """读取txt文件"""
-    def match(self, line, event,tab_time):
+    def match(self, line, event,tab_time,arg_list,async_def_list):
         return re.search(r'\$写 (.*?) (.*?) (.*?)\$', line) is not None
 
-    def process(self, line, event,tab_time):
+    def process(self, line, event,tab_time,arg_list,async_def_list):
         matches = re.findall(r'\$写 ([^\$]*) ([^\$]*) ([^\$]*)\$', line)
         if matches:
             for match in matches:
@@ -85,10 +119,10 @@ class 写_1_Rule(ParseRule):
     
 class 写_2_Rule(ParseRule):
     """读取txt文件"""
-    def match(self, line, event,tab_time):
+    def match(self, line, event,tab_time,arg_list,async_def_list):
         return re.search(r'\$写 (.*?) (.*?)\$', line) is not None
 
-    def process(self, line, event,tab_time):
+    def process(self, line, event,tab_time,arg_list,async_def_list):
         matches = re.findall(r'\$写 ([^\$]*) ([^\$]*)\$', line)
         if matches:
             for match in matches:
@@ -97,10 +131,10 @@ class 写_2_Rule(ParseRule):
         return line,tab_time
 
 class 正负_Rule(ParseRule):
-    def match(self, line, event,tab_time):
+    def match(self, line, event,tab_time,arg_list,async_def_list):
         return '±' in line
 
-    def process(self, line, event,tab_time):
+    def process(self, line, event,tab_time,arg_list,async_def_list):
         # 分割文本和指令
         parts = re.split(r'(±.*?±)', line)
         
@@ -138,10 +172,10 @@ class 正负_Rule(ParseRule):
         return line,tab_time
 
 class 如果_Rule(ParseRule):
-    def match(self, line, event,tab_time):
+    def match(self, line, event,tab_time, arg_list, async_def_list):
         return re.match(r'^如果 = f"(.*) (==|!=|>=|<=|>|<) (.*)"$',line) or re.match(r'^如果尾$',line)
 
-    def process(self, line, event,tab_time):
+    def process(self, line, event,tab_time, arg_list,async_def_list):
         parts = re.match(r'^如果 = f"(.*) (==|!=|>=|<=|>|<) (.*)"$',line)
         parts_match = re.match(r'^如果尾$',line)
         if parts:
@@ -151,13 +185,37 @@ class 如果_Rule(ParseRule):
             line = ''
             tab_time -= 1
         return line,tab_time
+
+
+class 循环_Rule(ParseRule):
+    def match(self, line, event,tab_time, arg_list, async_def_list):
+        return re.match(r'^循环 = f"(.*) in (.*)"$',line) or re.match(r'^循环尾$',line) or re.match(r'^阻断$',line)
+
+    def process(self, line, event,tab_time, arg_list,async_def_list):
+        parts = re.match(r'^循环 = f"(.*) in (.*)"$',line)
+        parts_match = re.match(r'^循环尾$',line)
+        parts_break = re.match(r'^阻断$',line)
+        if parts:
+            parts_bianliang = re.match(r'^{.*}$',parts.group(1))
+            if parts_bianliang:
+                line = 'for ' + parts.group(1).replace('{','').replace('}','') + ' in ' + f'range({parts.group(2)})' + ':'
+                tab_time += 1
+            else:
+                line = 'for ' + parts.group(1) + ' in ' + parts.group(2) + ':'
+                tab_time += 1
+        elif parts_match:
+            line = ''
+            tab_time -= 1
+        elif parts_break:
+            line = 'break'
+            tab_time -= 1
+        return line,tab_time
     
 class 数组_Rule(ParseRule):
-    """读取txt文件"""
-    def match(self, line, event,tab_time):
+    def match(self, line, event,tab_time, arg_list,async_def_list):
         return re.search(r'@', line) is not None
 
-    def process(self, line, event,tab_time):
+    def process(self, line, event,tab_time, arg_list,async_def_list):
         main_pattern = r'@\{([^}]*)\}((?:\[[^]]*\])+)'
         main_match_data = re.findall(main_pattern, line)
 

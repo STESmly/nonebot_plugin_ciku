@@ -1,11 +1,12 @@
 # parsing_method.py
+import nonebot
 from .basic_method import read_txt, write_txt
 from .parser_rules import ParseRule
 import importlib,re
 import inspect
 import pathlib
 from nonebot.log import logger
-from nonebot.adapters.onebot.v11 import GroupMessageEvent,MessageSegment
+from nonebot.adapters.onebot.v11 import GroupMessageEvent,MessageSegment,Event,Message
 
 class Parser:
     def __init__(self):
@@ -57,38 +58,154 @@ class Parser:
     def register_rule(self, rule: ParseRule):
         self.rules.append(rule)
     
-    def parse_line(self, line: str, event: GroupMessageEvent,tab_time:int) -> str:
+    def parse_line(self, line: str, event: Event,tab_time:int,arg_list:list,async_def_list:list) -> str:
         for rule in self.rules:
-            if rule.match(line, event,tab_time):
-                line,tab_time = rule.process(line, event,tab_time)
+            if rule.match(line, event,tab_time,arg_list,async_def_list):
+                line,tab_time = rule.process(line, event,tab_time, arg_list,async_def_list)
         return line,tab_time
 
 # 初始化解析器时会自动加载规则
 parser = Parser()
 
-async def send_input(res_lst, event: GroupMessageEvent):
+async def send_input(res_lst, event: Event,arg_list: list,async_def_lst:list):
     finall_res = ''
+    async_def_res_list = ""
     tab_time = 0
     for line in res_lst:
-        tab = ''
-        parsed_line,tab_time = parser.parse_line(line, event,tab_time)
-        symbols = ['=']
-        macth = re.match(r'if .*(==|!=|>=|<=|>|<).*:', parsed_line)
-        if tab_time > 0:
-            if macth:
-                for time in range(tab_time-1):
-                    tab += '    '
-            else:
-                for time in range(tab_time):
-                    tab += '    '
-        if not any(symbol in parsed_line for symbol in symbols) and not macth and len(parsed_line) > 0:
-            finall_res += tab + f'ck_res_finall_data += f"{str(parsed_line)}"\n'
+        if matches := re.findall(r'^\$回调 ([^\$]*)\$$', line):
+            for match_data in matches:
+                data = f"ck_res_finall_data += {match_data}()"
+                finall_res += line.replace(f'$回调 {match_data}$', data)
+                for async_def in async_def_lst:
+                    first = async_def.split('\n')[0]
+                    async_match = re.match(rf'^\[内部\]{match_data}$', first)
+                    if async_match:
+                        async_def_res_list = f"""def {match_data}():\n    ck_res_finall_data = ''\n"""
+                        for line in async_def.split('\n')[1:]:
+                            tab = ''
+                            async_tab_time = 1
+                            parsed_line,async_tab_time = parser.parse_line(line, event,async_tab_time,arg_list,async_def_lst)
+                            symbols = ['=']
+                            macth_1 = re.match(r'if .*(==|!=|>=|<=|>|<).*:', parsed_line)
+                            macth_2 = re.match(r'for.*in.*:', parsed_line)
+                            if macth_1:
+                                for time in range(async_tab_time-1):
+                                    tab += '    '
+                            elif macth_2:
+                                for time in range(async_tab_time-1):
+                                    tab += '    '
+                            else:
+                                for time in range(async_tab_time):
+                                    tab += '    '
+                            if not any(symbol in parsed_line for symbol in symbols) and len(parsed_line) > 0:
+                                finall_type = True
+                                if macth_1:
+                                    finall_type = False
+                                if macth_2:
+                                    finall_type = False
+                                if finall_type:
+                                    async_def_res_list += tab + f'ck_res_finall_data += f"{str(parsed_line)}"\n'
+                                else:
+                                    if len(parsed_line) > 0:
+                                        async_def_res_list += tab + parsed_line +'\n'
+                                    else:
+                                        pass
+                            else:
+                                if len(parsed_line) > 0:
+                                    async_def_res_list += tab + parsed_line +'\n'
+                                else:
+                                    pass
+                        async_def_res_list += "    return ck_res_finall_data\n\n"
+
+        elif matches := re.findall(r'^\$调用 ([^\$]*)\$$', line):
+            for match_data in matches:
+                for async_def in async_def_lst:
+                    first = async_def.split('\n')[0]
+                    async_match = re.match(rf'^\[内部\]{match_data}$', first)
+                    if async_match:
+                        async_def_res_list_send = f"""ck_res_finall_data = ''\n"""
+                        for line in async_def.split('\n')[1:]:
+                            tab = ''
+                            async_tab_time = 0
+                            parsed_line,async_tab_time = parser.parse_line(line, event,async_tab_time,arg_list,async_def_lst)
+                            symbols = ['=']
+                            macth_1 = re.match(r'if .*(==|!=|>=|<=|>|<).*:', parsed_line)
+                            macth_2 = re.match(r'for.*in.*:', parsed_line)
+                            if macth_1:
+                                for time in range(async_tab_time-1):
+                                    tab += '    '
+                            elif macth_2:
+                                for time in range(async_tab_time-1):
+                                    tab += '    '
+                            else:
+                                for time in range(async_tab_time):
+                                    tab += '    '
+                            if not any(symbol in parsed_line for symbol in symbols) and len(parsed_line) > 0:
+                                finall_type = True
+                                if macth_1:
+                                    finall_type = False
+                                if macth_2:
+                                    finall_type = False
+                                if finall_type:
+                                    async_def_res_list_send += tab + f'ck_res_finall_data += f"{str(parsed_line)}"\n'
+                                else:
+                                    if len(parsed_line) > 0:
+                                        async_def_res_list_send += tab + parsed_line +'\n'
+                                    else:
+                                        pass
+                            else:
+                                if len(parsed_line) > 0:
+                                    async_def_res_list_send += tab + parsed_line +'\n'
+                                else:
+                                    pass
+                    namespace = {
+                        'read_txt': read_txt, 
+                        'ck_res_finall_data': '',
+                        'MessageSegment': MessageSegment,
+                        'write_txt': write_txt,
+                        'Path': pathlib.Path,
+                        }
+                    print(async_def_res_list_send)
+                    exec(async_def_res_list_send, namespace)
+                    res_msg = namespace.get('ck_res_finall_data', None)
+                    (bot,) = nonebot.get_bots().values()
+                    await bot.send_msg(message_type="group", group_id=event.group_id, message=Message(res_msg))
+            
         else:
-            if len(parsed_line) > 0:
-                finall_res += tab + parsed_line +'\n'
+            tab = ''
+            parsed_line,tab_time = parser.parse_line(line, event,tab_time,arg_list,async_def_lst)
+            symbols = ['=']
+            macth_1 = re.match(r'if .*(==|!=|>=|<=|>|<).*:', parsed_line)
+            macth_2 = re.match(r'for.*in.*:', parsed_line)
+            if tab_time > 0:
+                if macth_1:
+                    for time in range(tab_time-1):
+                        tab += '    '
+                elif macth_2:
+                    for time in range(tab_time-1):
+                        tab += '    '
+                else:
+                    for time in range(tab_time):
+                        tab += '    '
+            if not any(symbol in parsed_line for symbol in symbols) and len(parsed_line) > 0:
+                finall_type = True
+                if macth_1:
+                    finall_type = False
+                if macth_2:
+                    finall_type = False
+                if finall_type:
+                    finall_res += tab + f'ck_res_finall_data += f"{str(parsed_line)}"\n'
+                else:
+                    if len(parsed_line) > 0:
+                        finall_res += tab + parsed_line +'\n'
+                    else:
+                        pass
             else:
-                pass
-    
+                if len(parsed_line) > 0:
+                    finall_res += tab + parsed_line +'\n'
+                else:
+                    pass
+    finall_res = async_def_res_list + finall_res
     namespace = {
         'read_txt': read_txt, 
         'ck_res_finall_data': '',
@@ -98,4 +215,3 @@ async def send_input(res_lst, event: GroupMessageEvent):
         }
     exec(finall_res, namespace)
     return namespace.get('ck_res_finall_data', None)
-
