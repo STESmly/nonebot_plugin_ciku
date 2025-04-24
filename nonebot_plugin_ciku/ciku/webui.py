@@ -27,7 +27,7 @@ def validate_filename(filename: str, file_type: str) -> bool:
     except (ValueError, FileNotFoundError):
         return False
 
-@router.get("/webui", response_class=HTMLResponse)
+@router.get("/ck_webui", response_class=HTMLResponse)
 async def web_interface(request: Request):
     return """<!DOCTYPE html>
 <html>
@@ -495,7 +495,7 @@ async def web_interface(request: Request):
         async function loadFileList() {
             try {
                 // 确保携带当前模式参数
-                const res = await fetch(`/webui/files?type=${currentMode}`);
+                const res = await fetch(`/ck_webui/files?type=${currentMode}`);
                 if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
                 
                 const files = await res.json();
@@ -520,7 +520,7 @@ async def web_interface(request: Request):
         }
         async function loadFile(filename) {
             try {
-                const res = await fetch(`/webui/load_ck?file=${encodeURIComponent(filename)}&type=${currentMode}`);
+                const res = await fetch(`/ck_webui/load_ck?file=${encodeURIComponent(filename)}&type=${currentMode}`);
                 const content = await res.text();
                 editor.setValue(content);
                 currentFile = filename;
@@ -535,7 +535,7 @@ async def web_interface(request: Request):
             try {
                 let content = editor.getValue();
                 content = content.replace('\\r\\n', '\\n').replace('\\r', '\\n');
-                await fetch(`/webui/save_ck?file=${currentFile}`, {
+                await fetch(`/ck_webui/save_ck?file=${currentFile}`, {
                     method: 'POST',
                     body: content,
                     headers: { 'Content-Type': 'text/plain' }
@@ -560,7 +560,7 @@ async def web_interface(request: Request):
             const filename = document.getElementById('new-filename').value + ext;
             
             try {
-                const res = await fetch(`/webui/create?file=${filename}&type=${currentMode}`, { 
+                const res = await fetch(`/ck_webui/create?file=${filename}&type=${currentMode}`, { 
                     method: 'POST' 
                 });
                 const result = await res.json();
@@ -579,7 +579,7 @@ async def web_interface(request: Request):
             event.stopPropagation();
             if (!confirm(`确定删除 ${filename} 吗？`)) return;
             try {
-                await fetch(`/webui/delete?file=${filename}&type=${currentMode}`, { 
+                await fetch(`/ck_webui/delete?file=${filename}&type=${currentMode}`, { 
                     method: 'DELETE' 
                 });
                 loadFileList();
@@ -625,7 +625,7 @@ async def web_interface(request: Request):
         });
 
         function connectWebSocket() {
-            logsWs = new WebSocket(`ws://${location.host}/webui/logs`);
+            logsWs = new WebSocket(`ws://${location.host}/ck_webui/logs`);
 
             logsWs.onmessage = (event) => {
                 const entry = document.createElement('div');
@@ -654,20 +654,17 @@ async def web_interface(request: Request):
             };
         }
 
-        // 初始化WebSocket连接
         connectWebSocket();
     </script>
 </body>
 </html>"""
 
-@router.get("/webui/files")
+@router.get("/ck_webui/files")
 async def list_files(file_type: str = Query("ck", alias="type")):
-    # 确保目录路径正确
     target_dir = ck_path if file_type == "ck" else custom_dir
     if not target_dir.exists():
         target_dir.mkdir(parents=True, exist_ok=True)
     
-    # 修正文件匹配模式
     pattern = "*.ck" if file_type == "ck" else "*.py"
     files = []
     
@@ -683,7 +680,7 @@ async def list_files(file_type: str = Query("ck", alias="type")):
     except Exception as e:
         return JSONResponse({"error": str(e)}, status_code=500)
 
-@router.post("/webui/create")
+@router.post("/ck_webui/create")
 async def create_file(file: str = Query(...), file_type: str = Query("ck", alias="type")):
     target_dir = ck_path if file_type == "ck" else custom_dir
     if not validate_filename(file, file_type):
@@ -696,7 +693,7 @@ async def create_file(file: str = Query(...), file_type: str = Query("ck", alias
     file_path.touch()
     return JSONResponse({"status": "success"})
 
-@router.delete("/webui/delete")
+@router.delete("/ck_webui/delete")
 async def delete_file(file: str = Query(...), file_type: str = Query("ck", alias="type")):
     target_dir = ck_path if file_type == "ck" else custom_dir
     if not validate_filename(file, file_type):
@@ -709,7 +706,7 @@ async def delete_file(file: str = Query(...), file_type: str = Query("ck", alias
     file_path.unlink()
     return JSONResponse({"status": "success"})
 
-@router.get("/webui/load_ck")
+@router.get("/ck_webui/load_ck")
 async def load_file(file: str = Query(...), file_type: str = Query("ck", alias="type")):
     target_dir = ck_path if file_type == "ck" else custom_dir
     if not validate_filename(file, file_type):
@@ -722,7 +719,7 @@ async def load_file(file: str = Query(...), file_type: str = Query("ck", alias="
     
     return Response(file_path.read_text(encoding="utf-8"), media_type="text/plain")
 
-@router.post("/webui/save_ck")
+@router.post("/ck_webui/save_ck")
 async def save_file(file: str = Query(...), file_type: str = Query("ck", alias="type"), request: Request = None):
     target_dir = ck_path if file_type == "ck" else custom_dir
     if not validate_filename(file, file_type):
@@ -734,7 +731,7 @@ async def save_file(file: str = Query(...), file_type: str = Query("ck", alias="
     return JSONResponse({"status": "success"})
 
 
-@router.websocket("/webui/logs")
+@router.websocket("/ck_webui/logs")
 async def websocket_logs(websocket: WebSocket):
     await websocket.accept()
     
@@ -759,8 +756,6 @@ async def websocket_logs(websocket: WebSocket):
         async with log_lock:
             if websocket in log_subscriptions:
                 log_subscriptions.remove(websocket)
-        
-        # 添加连接状态检查
         if websocket.client_state != WebSocketState.DISCONNECTED:
             try:
                 await websocket.close(code=1000)
@@ -772,7 +767,6 @@ async def push_log(message: str):
     async with log_lock:
         dead_connections = []
         
-        # 遍历所有订阅连接
         for ws in log_subscriptions:
             try:
                 if ws.client_state == WebSocketState.CONNECTED:

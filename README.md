@@ -54,6 +54,13 @@ _✨ NoneBot 插件描述 ✨_
 
 项目还在持续优化，暂时不开放env配置相关
 
+# ⚙️ webui
+
+为方便用户使用，本插件自带webui
+具体路径为 你nonebot的ws链接地址:端口/ck_webui
+例如:http://127.0.0.1:8090/ck_webui
+后续会将变量大全等教程转移到webui里面
+
 <details open>
 <summary>变量大全</summary>
 目前支持的变量(\是md转译问题，忽略就行):
