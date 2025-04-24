@@ -4,7 +4,7 @@ from typing import Literal, Type, TypeVar
 from nonebot.adapters.onebot.v11 import Adapter
 from nonebot.log import logger
 from nonebot.typing import overrides
-
+from .webui import *
 
 Event_T = TypeVar("Event_T", bound=Type[Event])
 

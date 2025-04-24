@@ -29,6 +29,8 @@ class 冒号_rule(ParseRule):
                 return f'{parts[0]} = f"{stripped_part}"', tab_time
             elif re.match(r'±.*:.*±',line):
                 return line, tab_time
+            elif re.match(r'^.*:\$访问[^$]*\$$',line):
+                return f'ck_bianliang_{parts[0]} = {stripped_part}', tab_time
             elif re.match(r'^.*:\[.*\]$',line):
                 if '%' in stripped_part:
                     variables = re.findall(r'%([^%]*)%', stripped_part)
@@ -78,58 +80,73 @@ class 数据计算_rule(ParseRule):
                 pass
         return f'{line}',tab_time
    
-class 读_1_Rule(ParseRule):
+class 读_Rule(ParseRule):
     """读取txt文件"""
-    def match(self, line, event,tab_time,arg_list,async_def_list):
-        return re.search(r'\$读 (.*?) (.*?) (.*?)\$', line) is not None
+    def match(self, line, event, tab_time, arg_list, async_def_list):
+        return re.search(r'\$读 (.*?) (.*?) (.*?)\$', line) is not None or \
+               re.search(r'\$读 (.*?) (.*?)\$', line) is not None
 
-    def process(self, line, event,tab_time,arg_list,async_def_list):
-        matches = re.findall(r'\$读 ([^\$]*) ([^\$]*) ([^\$]*)\$', line)
-        if matches:
-            for match in matches:
+    def process(self, line, event, tab_time, arg_list, async_def_list):
+        matches_3 = re.findall(r'\$读 ([^\$]*) ([^\$]*) ([^\$]*)\$', line)
+        matches_2 = re.findall(r'\$读 ([^\$]*) ([^\$]*)\$', line)
+        if matches_3:
+            for match in matches_3:
                 data = "{read_txt(f'" + match[0] + "', f'" + match[2] + "', f'" + match[1] + "')}"
                 line = line.replace(f'$读 {match[0]} {match[1]} {match[2]}$', data)
-        return line,tab_time
-
-class 读_2_Rule(ParseRule):
-    """读取txt文件"""
-    def match(self, line, event,tab_time,arg_list,async_def_list):
-        return re.search(r'\$读 (.*?) (.*?)\$', line) is not None
-    
-    def process(self, line, event,tab_time,arg_list,async_def_list):
-        matches = re.findall(r'\$读 ([^\$]*) ([^\$]*)\$', line)
-        if matches:
-            for match in matches:
+        elif matches_2:
+            for match in matches_2:
                 data = "{read_txt(f'" + match[0] + "', f'" + match[1] + "')}"
                 line = line.replace(f'$读 {match[0]} {match[1]}$', data)
-        return line,tab_time
+        return line, tab_time
     
-class 写_1_Rule(ParseRule):
+class 写_Rule(ParseRule):
     """读取txt文件"""
     def match(self, line, event,tab_time,arg_list,async_def_list):
-        return re.search(r'\$写 (.*?) (.*?) (.*?)\$', line) is not None
+        return re.search(r'\$写 (.*?) (.*?) (.*?)\$', line) is not None or \
+               re.search(r'\$写 (.*?) (.*?)\$', line) is not None
 
     def process(self, line, event,tab_time,arg_list,async_def_list):
-        matches = re.findall(r'\$写 ([^\$]*) ([^\$]*) ([^\$]*)\$', line)
-        if matches:
-            for match in matches:
+        matches_3 = re.findall(r'\$写 ([^\$]*) ([^\$]*) ([^\$]*)\$', line)
+        matches_2 = re.findall(r'\$写 ([^\$]*) ([^\$]*)\$', line)
+        if matches_3:
+            for match in matches_3:
                 data = "{write_txt(f'" + match[0] + "', f'" + match[2] + "', f'" + match[1] + "')}"
                 line = line.replace(f'$写 {match[0]} {match[1]} {match[2]}$', data)
-        return line,tab_time
-    
-class 写_2_Rule(ParseRule):
-    """读取txt文件"""
-    def match(self, line, event,tab_time,arg_list,async_def_list):
-        return re.search(r'\$写 (.*?) (.*?)\$', line) is not None
-
-    def process(self, line, event,tab_time,arg_list,async_def_list):
-        matches = re.findall(r'\$写 ([^\$]*) ([^\$]*)\$', line)
-        if matches:
-            for match in matches:
+        elif matches_2:
+            for match in matches_2:
                 data = "{write_txt(f'" + match[0] + "', f'" + match[1] + "')}"
                 line = line.replace(f'$写 {match[0]} {match[1]}$', data)
         return line,tab_time
+    
+class 访问_Rule(ParseRule):
+    def match(self, line, event,tab_time,arg_list,async_def_list):
+        return re.search(r'\$访问 (.*?)\$', line) is not None or \
+               re.search(r'\$访问 (.*?) (.*?)\$', line) is not None or \
+               re.search(r'\$访问 (.*?) (.*?) (.*?)\$', line) is not None or \
+               re.search(r'\$访问 post (.*?) (.*?) (.*?)\$', line) is not None
 
+    def process(self, line, event,tab_time,arg_list,async_def_list):
+        matches_1 = re.findall(r'\$访问 ([^\$]*)\$', line)
+        matches_2 = re.findall(r'\$访问 ([^\$]*) ([^\$]*)\$', line)
+        matches_3 = re.findall(r'\$访问 ([^\$]*) ([^\$]*) ([^\$]*)\$', line)
+        matches_4 = re.findall(r'\$访问 post ([^\$]*) ([^\$]*) ([^\$]*)\$', line)
+        if matches_1:
+            for match in matches_1:
+                data = "get_url(f'" + match + "')"
+                line = line.replace(f'$访问 {match}$', data)
+        elif matches_2:
+            for match in matches_2:
+                data = "get_url(f'" + match[0] + "',get, f'" + match[1] + "',None)"
+                line = line.replace(f'$访问 {match[0]} {match[1]}$', data)
+        elif matches_3:
+            for match in matches_3:
+                data = "get_url(f'" + match[1] + "',f'" + match[0] + "', headers=f'" + match[2] + "',None)"
+                line = line.replace(f'$访问 {match[0]} {match[1]} {match[2]}$', data)
+        elif matches_4:
+            for match in matches_4:
+                data = "get_url(f'" + match[0] + "',post, f'" + match[1] + "',f'" + match[2] + "')"
+                line = line.replace(f'$访问 post {match[0]} {match[1]} {match[2]}$', data)
+        return line, tab_time
 class 正负_Rule(ParseRule):
     def match(self, line, event,tab_time,arg_list,async_def_list):
         return '±' in line
@@ -229,6 +246,6 @@ class 数组_Rule(ParseRule):
                 data = ''
                 for bracket_content in bracket_contents:
                     data += f'[{bracket_content}]'
-                res = '{' + name + data.replace('"',"'") + '}'
+                res = '{' + name  + data.replace('"',"'") + '}'
                 line = line.replace('@{' + name + '}' + data, res)
         return line,tab_time

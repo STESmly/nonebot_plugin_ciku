@@ -1,12 +1,19 @@
-# parsing_method.py
 import nonebot
-from .basic_method import read_txt, write_txt
+from .basic_method import *
 from .parser_rules import ParseRule
 import importlib,re
 import inspect
 import pathlib
 from nonebot.log import logger
 from nonebot.adapters.onebot.v11 import GroupMessageEvent,MessageSegment,Event,Message
+from nonebot import require
+require("nonebot_plugin_localstore")
+import nonebot_plugin_localstore as store
+
+data_dir = store.get_plugin_data_dir()
+
+ck_path = data_dir / "词库文件"
+custom_dir = data_dir / "自定义拓展"
 
 class Parser:
     def __init__(self):
@@ -16,16 +23,14 @@ class Parser:
     
     def load_default_rules(self):
         """加载parser_rules.py中的规则"""
-        from . import parser_rules  # 导入默认规则模块
+        from . import parser_rules  
         self._load_rules_from_module(parser_rules)
 
     def load_custom_rules(self):
         """加载自定义拓展文件夹中的规则"""
-        custom_dir = pathlib.Path("自定义拓展")
         if not custom_dir.exists():
             custom_dir.mkdir(parents=True, exist_ok=True)
         
-        # 创建 __init__.py 文件并写入内容
             init_file = custom_dir / "__init__.py"
             with open(init_file, 'w', encoding='utf-8') as file:
                 file.write("from . import *\n")
@@ -64,7 +69,6 @@ class Parser:
                 line,tab_time = rule.process(line, event,tab_time, arg_list,async_def_list)
         return line,tab_time
 
-# 初始化解析器时会自动加载规则
 parser = Parser()
 
 async def send_input(res_lst, event: Event,arg_list: list,async_def_lst:list):
@@ -85,7 +89,7 @@ async def send_input(res_lst, event: Event,arg_list: list,async_def_lst:list):
                             tab = ''
                             async_tab_time = 1
                             parsed_line,async_tab_time = parser.parse_line(line, event,async_tab_time,arg_list,async_def_lst)
-                            symbols = ['=']
+                            base_match = re.match(r'^ck_bianliang_.*$', parsed_line)
                             macth_1 = re.match(r'if .*(==|!=|>=|<=|>|<).*:', parsed_line)
                             macth_2 = re.match(r'for.*in.*:', parsed_line)
                             if macth_1:
@@ -97,7 +101,7 @@ async def send_input(res_lst, event: Event,arg_list: list,async_def_lst:list):
                             else:
                                 for time in range(async_tab_time):
                                     tab += '    '
-                            if not any(symbol in parsed_line for symbol in symbols) and len(parsed_line) > 0:
+                            if not base_match and len(parsed_line) > 0:
                                 finall_type = True
                                 if macth_1:
                                     finall_type = False
@@ -128,7 +132,7 @@ async def send_input(res_lst, event: Event,arg_list: list,async_def_lst:list):
                             tab = ''
                             async_tab_time = 0
                             parsed_line,async_tab_time = parser.parse_line(line, event,async_tab_time,arg_list,async_def_lst)
-                            symbols = ['=']
+                            base_match = re.match(r'^ck_bianliang_.*$', parsed_line)
                             macth_1 = re.match(r'if .*(==|!=|>=|<=|>|<).*:', parsed_line)
                             macth_2 = re.match(r'for.*in.*:', parsed_line)
                             if macth_1:
@@ -140,7 +144,7 @@ async def send_input(res_lst, event: Event,arg_list: list,async_def_lst:list):
                             else:
                                 for time in range(async_tab_time):
                                     tab += '    '
-                            if not any(symbol in parsed_line for symbol in symbols) and len(parsed_line) > 0:
+                            if not base_match and len(parsed_line) > 0:
                                 finall_type = True
                                 if macth_1:
                                     finall_type = False
@@ -158,23 +162,24 @@ async def send_input(res_lst, event: Event,arg_list: list,async_def_lst:list):
                                     async_def_res_list_send += tab + parsed_line +'\n'
                                 else:
                                     pass
-                    namespace = {
-                        'read_txt': read_txt, 
-                        'ck_res_finall_data': '',
-                        'MessageSegment': MessageSegment,
-                        'write_txt': write_txt,
-                        'Path': pathlib.Path,
-                        }
-                    print(async_def_res_list_send)
-                    exec(async_def_res_list_send, namespace)
-                    res_msg = namespace.get('ck_res_finall_data', None)
-                    (bot,) = nonebot.get_bots().values()
-                    await bot.send_msg(message_type="group", group_id=event.group_id, message=Message(res_msg))
+                namespace = {
+                    'read_txt': read_txt, 
+                    'ck_res_finall_data': '',
+                    'MessageSegment': MessageSegment,
+                    'write_txt': write_txt,
+                    'Path': pathlib.Path,
+                    'get_url': get_url,
+                    'json':json,
+                }
+                exec(async_def_res_list_send, namespace)
+                res_msg = namespace.get('ck_res_finall_data', None)
+                (bot,) = nonebot.get_bots().values()
+                await bot.send_msg(message_type="group", group_id=event.group_id, message=Message(res_msg))
             
         else:
             tab = ''
             parsed_line,tab_time = parser.parse_line(line, event,tab_time,arg_list,async_def_lst)
-            symbols = ['=']
+            base_match = re.match(r'^ck_bianliang_.*$', parsed_line)
             macth_1 = re.match(r'if .*(==|!=|>=|<=|>|<).*:', parsed_line)
             macth_2 = re.match(r'for.*in.*:', parsed_line)
             if tab_time > 0:
@@ -187,7 +192,7 @@ async def send_input(res_lst, event: Event,arg_list: list,async_def_lst:list):
                 else:
                     for time in range(tab_time):
                         tab += '    '
-            if not any(symbol in parsed_line for symbol in symbols) and len(parsed_line) > 0:
+            if not base_match and len(parsed_line) > 0:
                 finall_type = True
                 if macth_1:
                     finall_type = False
@@ -212,6 +217,8 @@ async def send_input(res_lst, event: Event,arg_list: list,async_def_lst:list):
         'MessageSegment': MessageSegment,
         'write_txt': write_txt,
         'Path': pathlib.Path,
+        'get_url': get_url,
+        'json':json,
         }
     exec(finall_res, namespace)
     return namespace.get('ck_res_finall_data', None)

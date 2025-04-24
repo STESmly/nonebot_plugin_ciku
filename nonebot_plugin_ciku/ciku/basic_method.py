@@ -75,7 +75,7 @@ def write_txt(file_path, value, key=None):
                 f.write(f"{value}")
         return ""
     
-def get_url(url,method='get', headers=None,json=None):
+def get_url(url,method='get', headers=None,upjson=None):
     client = httpx.Client()
     if method == 'get':
         if headers == None:
@@ -84,16 +84,20 @@ def get_url(url,method='get', headers=None,json=None):
             res = client.get(url, headers=headers)
     elif method == 'post':
         if headers == None:
-            if json == None:
+            if upjson == None:
                 res = client.post(url)
             else:
-                res = client.post(url, json=json)
+                res = client.post(url, json=upjson)
         else:
-            if json == None:
+            if upjson == None:
                 res = client.post(url, headers=headers)
             else:
-                res = client.post(url, headers=headers, json=json)
-    return res.text
+                res = client.post(url, headers=headers, json=upjson)
+    try:
+        data = json.loads(res.text)
+        return data
+    except:
+        return res.text
 
 
 def match_math_expression(expr):
@@ -103,40 +107,38 @@ def match_math_expression(expr):
     except:
         token_pattern = re.compile(r'\%[^%%]*\%|\[[^\[\]]*\]|\d+|[+\-*/]')
 
-        # 将表达式分割成令牌列表
         tokens = token_pattern.findall(expr)
         
         def parse_expression(tokens):
             def parse_term(tokens):
                 term = parse_factor(tokens)
                 while tokens and tokens[0] in ('*', '/'):
-                    tokens.pop(0)  # 移除运算符
+                    tokens.pop(0)  
                     parse_factor(tokens)
                 return term
 
             def parse_factor(tokens):
                 if tokens[0] == '(':
-                    tokens.pop(0)  # 移除左括号
+                    tokens.pop(0)  
                     parse_expression(tokens)
                     if not tokens or tokens.pop(0) != ')':
                         return
                 elif tokens[0] == '[':
-                    tokens.pop(0)  # 移除左方括号
+                    tokens.pop(0)  
                     parse_bracket_expression(tokens)
                     if not tokens or tokens.pop(0) != ']':
                         return
                 else:
-                    tokens.pop(0)  # 移除数字
-
+                    tokens.pop(0)  
             def parse_bracket_expression(tokens):
                 parse_term(tokens)
                 while tokens and tokens[0] in ('+', '-'):
-                    tokens.pop(0)  # 移除运算符
+                    tokens.pop(0)  
                     parse_term(tokens)
 
             parse_term(tokens)
             while tokens and tokens[0] in ('+', '-'):
-                tokens.pop(0)  # 移除运算符
+                tokens.pop(0) 
                 parse_term(tokens)
 
         try:
@@ -146,7 +148,6 @@ def match_math_expression(expr):
         except IndexError:
             return 
 
-        # 将[]替换成()
         return expr.replace('[', '(').replace(']', ')').replace('%', '').replace('{', '(').replace('}', ')')
 
 def list_to_number(list):
@@ -166,12 +167,12 @@ def extract_formulas(s):
     for i, c in enumerate(s):
         if c == '[':
             if depth == 0:
-                current_start = i  # 开始新块
+                current_start = i 
             depth += 1
         elif c == ']':
             depth -= 1
             if depth == 0 and current_start != -1:
-                blocks.append(s[current_start:i+1])  # 记录闭合块
+                blocks.append(s[current_start:i+1]) 
                 current_start = -1
     return blocks
 
