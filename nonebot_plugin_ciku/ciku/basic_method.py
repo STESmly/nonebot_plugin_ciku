@@ -78,18 +78,18 @@ def write_txt(file_path, value, key=None):
 def get_url(url,method='get', headers=None,upjson=None):
     client = httpx.Client()
     if method == 'get':
-        if headers == None:
+        if headers == None or headers == 'None':
             res = client.get(url)
         else:
             res = client.get(url, headers=headers)
     elif method == 'post':
-        if headers == None:
-            if upjson == None:
+        if headers == None or headers == 'None':
+            if upjson == None or upjson == 'None':
                 res = client.post(url)
             else:
                 res = client.post(url, json=upjson)
         else:
-            if upjson == None:
+            if upjson == None or upjson == 'None':
                 res = client.post(url, headers=headers)
             else:
                 res = client.post(url, headers=headers, json=upjson)

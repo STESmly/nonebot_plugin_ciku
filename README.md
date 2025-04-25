@@ -108,6 +108,12 @@ $读 %路径%send.txt c wdnmd$
 如果:%a% == %a%
 缩进测试成功
 
+测试访问
+a:$访问 https://api.tangdouz.com/a/steam.php?return=json$ //默认get方法
+$访问 url 请求头$
+$访问 get url 请求头$
+$访问 post url 请求头 json$   //请求头和json没有就填None
+@%a%['store']
 
 
 测试json
@@ -141,25 +147,30 @@ $调用 测试调用$
 
 ### 自定义拓展
 
-在机器人项目目录下找到《自定义拓展》文件夹
-创建py文件，这里是示例
+webui里找到拓展编辑，新建py文件，这里是示例
 
 ```bash
 # example.py
 
-from nonebot import require
+from abc import ABC, abstractmethod
 
-require("nonebot_plugin_ciku")
+class ParseRule(ABC):
+    @abstractmethod
+    def match(self, line: str, event,tab_time:int,arg_list:list,async_def_list:list) -> bool:
+        pass
 
-from nonebot_plugin_ciku.ciku.parser_rules import ParseRule
+    @abstractmethod
+    def process(self, line: str, event,tab_time:int,arg_list:list,async_def_list:list) -> str:
+        pass
+import re
 
 class EmojiRule(ParseRule):
     """示例第三方规则：替换表情符号"""
     
-    def match(self, line, event,tab_time, arg_list,async_def_list) -> bool:
+    def match(self, line, event,tab_time,arg_list,async_def_list) -> bool:
         return re.search(r'#\w+#', line) is not None
     
-    def process(self, line, event,tab_time, arg_list,async_def_list) -> str:
+    def process(self, line, event,tab_time,arg_list,async_def_list) -> str:
         line = line.replace('#smile#', '😊')
         line = line.replace('#angry#', '😠')
         return f'{line}', tab_time

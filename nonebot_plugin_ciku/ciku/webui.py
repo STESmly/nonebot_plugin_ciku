@@ -11,7 +11,6 @@ from nonebot import get_driver
 driver = get_driver()
 
 router = APIRouter()
-app = get_app()
 
 log_subscriptions = set()
 log_lock = asyncio.Lock()
@@ -798,7 +797,7 @@ def cancel_log_subscriptions():
 
 driver.on_shutdown(cancel_log_subscriptions)
 
-try:
+@driver.on_startup
+async def _register_router():
+    app = get_app()
     app.include_router(router)
-finally:
-    pass
