@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Response, WebSocket, Request, Query
+from fastapi import APIRouter, Response, WebSocket, Request, Query,FastAPI
 from fastapi.responses import HTMLResponse, JSONResponse
-from nonebot import get_app
+from nonebot import get_app,logger
 from fastapi import WebSocketDisconnect
 from starlette.websockets import WebSocketState
 import asyncio
@@ -800,4 +800,7 @@ driver.on_shutdown(cancel_log_subscriptions)
 @driver.on_startup
 async def _register_router():
     app = get_app()
-    app.include_router(router)
+    if isinstance(app, FastAPI):
+        app.include_router(router)
+    else:
+        logger.warning(f"当前driver_app不是FastAPI，无法实行webui挂载")
