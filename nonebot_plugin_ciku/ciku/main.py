@@ -1,9 +1,10 @@
 import re
-from .parsing_method import send_input
 from pathlib import Path
 from nonebot.adapters.onebot.v11 import GroupMessageEvent,PokeNotifyEvent,Event
 import os
-from .parsing_method import ck_path
+from .webui import ck_path
+from .util import Parsing_parameters
+from .lexicon_parser import send_input
 
 directory = ck_path
 
@@ -60,9 +61,11 @@ async def check_input(user_input, event: GroupMessageEvent, directory: str = dir
                         if first not in ['[戳一戳]', '[入群申请]']:
                             match = re.match(rf'^{first}$', user_input)
                             if match:
-                                res_lst = i.split('\n')[1:]
+                                res_data = i.split('\n')[1:]
+                                res_data = '\n'.join(res_data)
                                 arg_lst = list(match.groups())
-                                return await send_input(res_lst, event, arg_lst, async_def_lst)
+                                data = Parsing_parameters(args=arg_lst, main_code=res_data, add_call_functions=async_def_lst,bs_event=event)
+                                await send_input(data)
                             else:
                                 pass
                         else:
@@ -72,9 +75,11 @@ async def check_input(user_input, event: GroupMessageEvent, directory: str = dir
                         if first not in ['[戳一戳]', '[入群申请]']:
                             match = re.match(rf'{first}', user_input)
                             if match:
-                                res_lst = i.split('\n')[2:]
+                                res_data = i.split('\n')[2:]
+                                res_data = '\n'.join(res_data)
                                 arg_lst = list(match.groups())
-                                return await send_input(res_lst, event, arg_lst, async_def_lst)
+                                data = Parsing_parameters(args=arg_lst, main_code=res_data, add_call_functions=async_def_lst,bs_event=event)
+                                await send_input(data)
                             else:
                                 pass
                         else:

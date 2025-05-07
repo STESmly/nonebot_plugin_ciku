@@ -54,42 +54,46 @@ def write_txt(file_path, value, key=None):
 
     config = {}
     with open(file_path, 'r', encoding='utf-8') as f:
-        if key != None:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                if '=' in line:
-                    k, v = line.split('=')
-                    config[k.strip()] = v.strip()
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            if '=' in line:
+                k, v = line.split('=')
+                config[k.strip()] = v.strip()
 
-                    config[key] = value
+                config[key] = value
 
-                    with open(file_path, 'w', encoding='utf-8') as f:
-                        for k, v in config.items():
-                            f.write(f"{k} = {v}\n")
-                else:
-                    logger.warning(f"写入失败！ 文件：{file_path} 不符合当前写入逻辑，请检查文件格式")
-        else:
-            with open(file_path, 'w', encoding='utf-8') as f:
-                f.write(f"{value}")
-        return ""
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    for k, v in config.items():
+                        f.write(f"{k} = {v}\n")
+            else:
+                logger.warning(f"写入失败！ 文件：{file_path} 不符合当前写入逻辑，请检查文件格式")
+    if key is not None:
+        config[key] = value
+        with open(file_path, 'w', encoding='utf-8') as f:
+            for k, v in config.items():
+                f.write(f"{k} = {v}\n")
+    else:
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(f"{value}")
+    return ""
     
 def get_url(url,method='get', headers=None,upjson=None):
     client = httpx.Client()
     if method == 'get':
-        if headers == None or headers == 'None':
+        if headers == None:
             res = client.get(url)
         else:
             res = client.get(url, headers=headers)
     elif method == 'post':
-        if headers == None or headers == 'None':
-            if upjson == None or upjson == 'None':
+        if headers == None:
+            if upjson == None:
                 res = client.post(url)
             else:
                 res = client.post(url, json=upjson)
         else:
-            if upjson == None or upjson == 'None':
+            if upjson == None:
                 res = client.post(url, headers=headers)
             else:
                 res = client.post(url, headers=headers, json=upjson)
@@ -107,38 +111,40 @@ def match_math_expression(expr):
     except:
         token_pattern = re.compile(r'\%[^%%]*\%|\[[^\[\]]*\]|\d+|[+\-*/]')
 
+        # 将表达式分割成令牌列表
         tokens = token_pattern.findall(expr)
         
         def parse_expression(tokens):
             def parse_term(tokens):
                 term = parse_factor(tokens)
                 while tokens and tokens[0] in ('*', '/'):
-                    tokens.pop(0)  
+                    tokens.pop(0)  # 移除运算符
                     parse_factor(tokens)
                 return term
 
             def parse_factor(tokens):
                 if tokens[0] == '(':
-                    tokens.pop(0)  
+                    tokens.pop(0)  # 移除左括号
                     parse_expression(tokens)
                     if not tokens or tokens.pop(0) != ')':
                         return
                 elif tokens[0] == '[':
-                    tokens.pop(0)  
+                    tokens.pop(0)  # 移除左方括号
                     parse_bracket_expression(tokens)
                     if not tokens or tokens.pop(0) != ']':
                         return
                 else:
-                    tokens.pop(0)  
+                    tokens.pop(0)  # 移除数字
+
             def parse_bracket_expression(tokens):
                 parse_term(tokens)
                 while tokens and tokens[0] in ('+', '-'):
-                    tokens.pop(0)  
+                    tokens.pop(0)  # 移除运算符
                     parse_term(tokens)
 
             parse_term(tokens)
             while tokens and tokens[0] in ('+', '-'):
-                tokens.pop(0) 
+                tokens.pop(0)  # 移除运算符
                 parse_term(tokens)
 
         try:
@@ -148,11 +154,12 @@ def match_math_expression(expr):
         except IndexError:
             return 
 
+        # 将[]替换成()
         return expr.replace('[', '(').replace(']', ')').replace('%', '').replace('{', '(').replace('}', ')')
 
 def list_to_number(list):
     try:
-        result = match_math_expression(list)  
+        result = match_math_expression(list)
     except ValueError as e:
         result = None
     if result is None:
@@ -167,12 +174,12 @@ def extract_formulas(s):
     for i, c in enumerate(s):
         if c == '[':
             if depth == 0:
-                current_start = i 
+                current_start = i  # 开始新块
             depth += 1
         elif c == ']':
             depth -= 1
             if depth == 0 and current_start != -1:
-                blocks.append(s[current_start:i+1]) 
+                blocks.append(s[current_start:i+1])  # 记录闭合块
                 current_start = -1
     return blocks
 

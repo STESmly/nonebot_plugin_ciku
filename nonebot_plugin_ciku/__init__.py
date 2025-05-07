@@ -1,29 +1,33 @@
 from .ciku import *
 from nonebot import on_message
-from nonebot.plugin import PluginMetadata
 
-__plugin_meta__ = PluginMetadata(
-    name="词库语言进阶版",
-    description="模仿手机端框架的词库语言插件，面向懒得学编程的手机框架用户",
-    usage="详细见md文档",
-
-    type="application",
-    # 发布必填，当前有效类型有：`library`（为其他插件编写提供功能），`application`（向机器人用户提供功能）。
-
-    homepage="https://github.com/STESmly/nonebot_plugin_ciku",
-    # 发布必填。
-
-    supported_adapters={"~onebot.v11"},
-    # 支持的适配器集合，其中 `~` 在此处代表前缀 `nonebot.adapters.`，其余适配器亦按此格式填写。
-    # 若插件可以保证兼容所有适配器（即仅使用基本适配器功能）可不填写，否则应该列出插件支持的适配器。
-)
-
+async def load_group_switches():
+    config_file = group_list / "group_switches.json"
+        
+    if not config_file.exists():
+        (bot,) = nonebot.get_bots().values()
+        data = await bot.call_api("get_group_list", no_cache=True)
+        default_config = {
+                    "global_enabled": True,
+                    "groups": [
+                        {"group_id": g["group_id"], "enabled": True} 
+                        for g in data
+                    ]
+                }
+        config_file.write_text(json.dumps(default_config, ensure_ascii=False, indent=2))
+    return json.loads(config_file.read_text(encoding="utf-8"))
+if not ck_path.exists():
+    ck_path.mkdir(parents=True, exist_ok=True)
+    open(ck_path / "dicpro.ck", 'w', encoding='utf-8').close()
 Group_Message = on_message()
 
 @Group_Message.handle()
 async def _(event: GroupMessageEvent):
+    config = await load_group_switches()
+    groups_dict = {group["group_id"]: group["enabled"] for group in config["groups"]}
     msg = event.original_message
     await push_log(f"[Bot（{event.self_id}）] <- 群聊 [{event.group_id}] | 用户 {event.user_id} : {msg}")
-    res = await check_input(msg, event)
-    if res != None:
-        await Group_Message.send(Message(res))
+    if config["global_enabled"]:
+        await check_input(str(msg), event)
+    elif groups_dict.get(event.group_id, False):
+        await check_input(str(msg), event)

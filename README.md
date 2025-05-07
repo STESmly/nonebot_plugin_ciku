@@ -70,8 +70,8 @@ _✨ NoneBot 插件描述 ✨_
 | %QQ% | 用户id |
 | %群号% | 群号 |
 | %BotQQ% | 机器人自己的QQ |
-| %括号n% | 从0开始匹配正则，提取对应字段 |
-| %ATn% | 从0开始，提取艾特对应的对象QQ号 |
+| %括号0% | 从0开始匹配正则，提取对应字段 |
+| %AT0% | 从0开始，提取艾特对应的对象QQ号 |
 | [[11*50]/6+5*[50+6-7*8]] | 如果被包裹的不是数组，优先被识别为计算式，如果不符合计算式，才是正常字符串 |
 | \\$读 路径 键 默认值\\$ | 读文件 |
 | \\$写 路径 键 值\\$ | 写文件 |
@@ -153,26 +153,377 @@ webui里找到拓展编辑，新建py文件，这里是示例
 # example.py
 
 from abc import ABC, abstractmethod
+from nonebot.adapters.onebot.v11 import Event
 
 class ParseRule(ABC):
-    @abstractmethod
-    def match(self, line: str, event,tab_time:int,arg_list:list,async_def_list:list) -> bool:
-        pass
 
     @abstractmethod
-    def process(self, line: str, event,tab_time:int,arg_list:list,async_def_list:list) -> str:
+
+    async def process(self, line: str, event: Event,arg_list:list,async_def_list:list) -> str:
+
         pass
-import re
 
-class EmojiRule(ParseRule):
-    """示例第三方规则：替换表情符号"""
-    
-    def match(self, line, event,tab_time,arg_list,async_def_list) -> bool:
-        return re.search(r'#\w+#', line) is not None
-    
-    def process(self, line, event,tab_time,arg_list,async_def_list) -> str:
-        line = line.replace('#smile#', '😊')
-        line = line.replace('#angry#', '😠')
-        return f'{line}', tab_time
 
+
+class example_rule(ParseRule):
+
+    async def process(self, def_list, event, arg_list, async_def_list):
+
+        ##一系列文本替换操作
+
+        ##def_list是主指令文本
+
+        ##async_def_list是响应函数文本（[内部]xxx）
+
+        ##下面是部分逻辑的实现过程
+
+        return def_list,async_def_list
+
+
+
+"""
+
+class 冒号_rule(ParseRule):
+
+    async def process(self, def_list, event, arg_list, async_def_list):
+
+
+
+        def process_line(lines,self_line):
+
+            for i, line in enumerate(lines):
+
+                if re.search(r'^.*:.*$', line) is not None:
+
+                    parts = line.split(':', 1)
+
+                    stripped_part = parts[1].strip().replace("'", '"')
+
+                    if f'%{parts[0]}%' in self_line:
+
+                        try:
+
+                            json.loads(stripped_part)
+
+                            lines[i] = f'ck_bianliang_{parts[0]} = {stripped_part}'
+
+                        except json.JSONDecodeError:
+
+                            if re.match(r'^.*:\$访问[^$]*\$$', line):
+
+                                lines[i] = f'ck_bianliang_{parts[0]} = {stripped_part}'
+
+                            elif re.match(r'^.*:\[.*\]$', line):
+
+                                if '%' in stripped_part:
+
+                                    variables = re.findall(r'%([^%]*)%', stripped_part)
+
+                                    for var in variables:
+
+                                        stripped_part = stripped_part.replace(f'%{var}%', "ck_bianliang_"+str(var))
+
+                                stripped_part = list_to_number(stripped_part)
+
+                                if stripped_part is not False:
+
+                                    lines[i] = f'ck_bianliang_{parts[0]} = {stripped_part}'
+
+                                else:
+
+                                    lines[i] = f'ck_bianliang_{parts[0]} = f"{stripped_part}"'
+
+                            else:
+
+                                lines[i] = f'ck_bianliang_{parts[0]} = f"{stripped_part}"'
+
+                    else:
+
+                        lines[i] = line
+
+            return lines
+
+        if re.search(r'.*:.*', def_list) is not None:
+
+            def_list_lines = def_list.split('\n')
+
+            def_list_lines = process_line(def_list_lines,def_list)
+
+            def_list = '\n'.join(def_list_lines)
+
+        else:
+
+            pass
+
+        for a, async_def_list_line in enumerate(async_def_list):
+
+            if re.search(r'\n.*:.*\n', async_def_list_line) is not None:
+
+                async_list = async_def_list_line.split('\n')
+
+                async_def_list_lines = async_list[1:]
+
+                async_def_list_lines = process_line(async_def_list_lines,async_def_list_line)
+
+                async_def_list_line = async_list[0]+'\n' + '\n'.join(async_def_list_lines)
+
+            else:
+
+                pass
+
+            async_def_list[a] = async_def_list_line
+
+        return def_list,async_def_list
+
+
+
+
+
+class 变量_rule(ParseRule):
+
+    async def process(self, def_list, event, arg_list, async_def_list):
+
+
+
+        def process_line(lines):
+
+            if '%' in lines:
+
+                variables = re.findall(r'%([^%]*)%', lines)
+
+                for var in variables:
+
+                    if var == '群号':
+
+                        lines = lines.replace(f'%{var}%', f'{event.group_id}')
+
+                    elif var == 'QQ':
+
+                        lines = lines.replace(f'%{var}%', f'{event.user_id}')
+
+                    elif var == 'BotQQ':
+
+                        lines = lines.replace(f'%{var}%', f'{event.self_id}')
+
+                    elif var == 'TargetQQ':
+
+                        lines = lines.replace(f'%{var}%', f'{event.target_id}')
+
+                    elif match := re.match(r'^括号(\d+)$', var):
+
+                        lines = lines.replace(f'%{var}%', f'{arg_list[int(match.group(1))]}')
+
+                    elif match := re.match(r'^AT(\d+)$', var):
+
+                        if len(at := event.original_message.include("at")) > 0:
+
+                            id = at[int(match.group(1))].data["qq"]
+
+                            lines = lines.replace(f'%{var}%', f'{id}')
+
+                    elif f'ck_bianliang_{var}' in lines:
+
+                        lines = lines.replace(f'%{var}%', f'{{{"ck_bianliang_"+str(var)}}}')
+
+                    else:
+
+                        pass
+
+            return lines
+
+        def_list = process_line(def_list)
+
+        for i, line in enumerate(async_def_list):
+
+            async_def_list[i] = process_line(line)
+
+        return def_list,async_def_list
+
+
+
+class 读_Rule(ParseRule):
+
+    '''有返回值的可以这样写————写法1'''
+
+    async def process(self, def_list, event, arg_list, async_def_list):
+
+        def process_line(lines):
+
+            matches_3 = re.findall(r'\$读 ([^\$]*) ([^\$]*) ([^\$]*)\$', lines)
+
+            matches_2 = re.findall(r'\$读 ([^\$]*) ([^\$]*)\$', lines)
+
+            if matches_3:
+
+                for match in matches_3:
+
+                    data = "{read_txt(f'" + match[0] + "', f'" + match[2] + "', f'" + match[1] + "')}"
+
+                    lines = lines.replace(f'$读 {match[0]} {match[1]} {match[2]}$', data)
+
+            elif matches_2:
+
+                for match in matches_2:
+
+                    data = "{read_txt(f'" + match[0] + "', f'" + match[1] + "')}"
+
+                    lines = lines.replace(f'$读 {match[0]} {match[1]}$', data)
+
+            return lines
+
+        if re.search(r'\$读 (.*?) (.*?) (.*?)\$', def_list) is not None or \
+
+            re.search(r'\$读 (.*?) (.*?)\$', def_list) is not None:
+
+            def_list = process_line(def_list)
+
+        for i, line in enumerate(async_def_list):
+
+            if re.search(r'\$读 (.*?) (.*?) (.*?)\$', line) is not None or \
+
+                re.search(r'\$读 (.*?) (.*?)\$', line) is not None:
+
+                async_def_list[i] = process_line(line)
+
+        return def_list, async_def_list
+
+
+
+
+
+class 调用_Rlue(ParseRule):
+
+    '''有返回值的———写法2'''
+
+    async def process(self, def_list, event, arg_list, async_def_list):
+
+        def process_line(lines):
+
+            matches_retrun = re.findall(r'\$回调 ([^\$]*)\$', lines)
+
+            matches_await = re.findall(r'\$调用 ([^\$]*)\$', lines)
+
+            if matches_retrun:
+
+                for match in matches_retrun:
+
+                    data = f"ck_res_finall_data += await ck_call_{match}(event)"
+
+                    return_type = False
+
+                    for i,line in enumerate(async_def_list):
+
+                        if f"[内部]{match}" in line:
+
+                            return_type = True
+
+                    if return_type == True:
+
+                        lines = lines.replace(f'$回调 {match}$', data)
+
+                    else:
+
+                        lines = lines.replace(f'$回调 {match}$', "")
+
+            if matches_await:
+
+                for match in matches_await:
+
+                    data = f"await bot.send(event, Message(await ck_call_{match}(event)))"
+
+                    await_type = False
+
+                    for i,line in enumerate(async_def_list):
+
+                        if f"[内部]{match}" in line:
+
+                            await_type = True
+
+                    if await_type == True:
+
+                        lines = lines.replace(f'$调用 {match}$', data)
+
+                    else:
+
+                        lines = lines.replace(f'$调用 {match}$', "")
+
+            return lines
+
+        def_list = process_line(def_list)
+
+        for i,line in enumerate(async_def_list):
+
+            async_def_list[i] = process_line(line)
+
+        return def_list,async_def_list
+
+
+
+class 循环_Rule(ParseRule):
+
+    '''如果需要缩进的你就这样写'''
+
+    async def process(self, def_list, event, arg_list, async_def_list):
+
+        def process_line(lines):
+
+            tab_time=0
+
+            for i,line in enumerate(lines):
+
+                parts = re.match(r'^循环:(.*) in (.*)$',line)
+
+                parts_match = re.match(r'^循环尾$',line)
+
+                parts_break = re.match(r'^阻断$',line)
+
+                if parts:
+
+                    parts_bianliang = re.match(r'^{.*}$',parts.group(1))
+
+                    if parts_bianliang:
+
+                        line = '\t' * tab_time + 'for ' + parts.group(1).replace('{','').replace('}','') + ' in ' + f'range({parts.group(2)})' + ':'
+
+                        tab_time += 1
+
+                    else:
+
+                        line = '\t' * tab_time + 'for ' + parts.group(1) + ' in ' + parts.group(2) + ':'
+
+                        tab_time += 1
+
+                elif parts_match:
+
+                    line = ''
+
+                    tab_time -= 1
+
+                elif parts_break:
+
+                    line = '\t' * tab_time + 'break'
+
+                    tab_time -= 1
+
+                else:
+
+                    line = '\t' * tab_time + line
+
+                lines[i] = line
+
+            lines = '\n'.join(lines)
+
+            return lines
+
+        def_list = process_line(def_list.split('\n'))
+
+        for i,line in enumerate(async_def_list):
+
+            async_def_list[i] = process_line(line.split('\n'))
+
+        
+
+        return def_list,async_def_list
+
+"""
 ```
