@@ -50,7 +50,7 @@ async def send_input(data_lst:psp):
         call_name = fc_lists[0]
         call_code = fc_lists[1:]
         if matches := re.match(r'^\[内部\](.*)$', call_name):
-            call_name = f'async def ck_call_{matches.group(1)}(event):\n    ck_res_finall_data = ""\n'
+            call_name = f'async def ck_call_{matches.group(1)}(event):\n    ck_res_finall_data = ""\n    (bot,) = nonebot.get_bots().values()\n'
         for i, line in enumerate(call_code):
             base_match = re.match(r'^\s*ck_bianliang_.*$', line)
             macth_1 = re.match(r'if .*(==|!=|>=|<=|>|<).*:', line)
