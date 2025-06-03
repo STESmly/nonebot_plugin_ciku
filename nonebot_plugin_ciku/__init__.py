@@ -8,7 +8,7 @@ __plugin_meta__ = PluginMetadata(
     description="词库进阶版",
     usage="写在readme上了",
     type="application",
-    homepage="https://github.com/STESmly/nonebot_plugin_nonebot_plugin_ciku",
+    homepage="https://github.com/STESmly/nonebot_plugin_ciku",
     config=None,
     supported_adapters={"~onebot.v11"},
 )
