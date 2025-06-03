@@ -1,6 +1,18 @@
 from .ciku import *
 from nonebot import on_message
 
+from nonebot.plugin import PluginMetadata
+
+__plugin_meta__ = PluginMetadata(
+    name="词库进阶版",
+    description="词库进阶版",
+    usage="写在readme上了",
+    type="application",
+    homepage="https://github.com/STESmly/nonebot_plugin_nonebot_plugin_ciku",
+    config=None,
+    supported_adapters={"~onebot.v11"},
+)
+
 async def load_group_switches():
     config_file = group_list / "group_switches.json"
         
