@@ -957,18 +957,26 @@ async def web_interface(request: Request):
 
         async function saveFile() {
             if (!currentFile) return alert('请先选择文件');
+            
             try {
-                let content = editor.getValue();
-                content = content.replace('\\r\\n', '\\n').replace('\\r', '\\n');
-                // 添加type参数
-                await fetch(`/ck_webui/save_ck?file=${currentFile}&type=${currentMode}`, {
+                // 获取原始内容（保留所有特殊字符和换行符）
+                const rawContent = editor.getValue();
+                
+                // 关键修复：将内容编码为Blob对象
+                const blob = new Blob([rawContent], { type: 'text/plain' });
+                
+                await fetch(`/ck_webui/save_ck?file=${encodeURIComponent(currentFile)}&type=${currentMode}`, {
                     method: 'POST',
-                    body: content,
-                    headers: { 'Content-Type': 'text/plain' }
+                    body: blob,  // 直接发送Blob对象
+                    headers: { 
+                        'Content-Type': 'text/plain; charset=utf-8'
+                    }
                 });
+                
                 alert('保存成功');
             } catch (err) {
-                alert('保存失败');
+                console.error('保存错误:', err);
+                alert(`保存失败: ${err.message}`);
             }
         }
         // 对话框管理
@@ -1307,9 +1315,11 @@ async def save_file(file: str = Query(...), file_type: str = Query("ck", alias="
     if not validate_filename(file, file_type):
         return JSONResponse({"status": "error", "msg": "非法文件路径"}, status_code=400)
     
-    content = (await request.body()).decode("utf-8")
+    content_bytes = await request.body()
+
     file_path = target_dir / file
-    file_path.write_text(content, encoding="utf-8")
+    with open(file_path, 'wb') as f:
+        f.write(content_bytes)
     return JSONResponse({"status": "success"})
 
 
